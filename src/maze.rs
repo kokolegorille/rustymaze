@@ -4,7 +4,7 @@ use std::cmp;
 use rand::{thread_rng, Rng};
 use rand::seq::SliceRandom;
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Copy, Clone, PartialEq, Eq, Hash)]
 pub struct Coordinate(pub usize, pub usize);
 
 impl Coordinate {
@@ -21,72 +21,68 @@ impl Coordinate {
     }
 }
 
-#[derive(Debug, PartialEq)]
-pub struct Cell {
-    coordinate: Coordinate,
-    n: Coordinate,
-    e: Coordinate,
-    s: Coordinate,
-    w: Coordinate,
-}
+// #[derive(PartialEq)]
+// pub struct Cell {
+//     coordinate: Coordinate,
+//     n: Coordinate,
+//     e: Coordinate,
+//     s: Coordinate,
+//     w: Coordinate,
+// }
 
-impl Cell {
-    pub fn new(coordinate: Coordinate) -> Self {
-        let Coordinate(x, y) = coordinate;
+// impl Cell {
+//     pub fn new(coordinate: Coordinate) -> Self {
+//         let Coordinate(x, y) = coordinate;
 
-        Self { 
-            coordinate, 
-            n: coordinate, 
-            e: Coordinate(x + 1, y), 
-            s: Coordinate(x, y + 1), 
-            w: coordinate,
-        }
-    }
-}
+//         Self { 
+//             coordinate, 
+//             n: coordinate, 
+//             e: Coordinate(x + 1, y), 
+//             s: Coordinate(x, y + 1), 
+//             w: coordinate,
+//         }
+//     }
+// }
 
-#[derive(Debug)]
 pub enum Border {
     Wall,
     Passage,
 }
 
-#[derive(Debug)]
-pub enum State {
-    Valid,
-    Uninitialized,
-    InvalidWidthHeight,
-    NoPaths,
-}
+// pub enum State {
+//     Valid,
+//     Uninitialized,
+//     InvalidWidthHeight,
+//     NoPaths,
+// }
 
-#[derive(Debug)]
 pub enum HorizontalVertical {
     Horizontal,
     Vertical,
 }
 
-#[derive(Debug)]
 pub struct Grid {
     width: usize,
     height: usize,
-    cells: HashMap<Coordinate, Cell>,
+    // cells: HashMap<Coordinate, Cell>,
     borders_h: HashMap<Coordinate, Border>,
     borders_v: HashMap<Coordinate, Border>,
-    paths: HashMap<Coordinate, Cell>,
-    state: State,
+    // paths: HashMap<Coordinate, Cell>,
+    // state: State,
 }
 
 impl Grid {
     pub fn new(width: usize, height: usize) -> Self {
-        let mut cells = HashMap::new();
+        // let mut cells = HashMap::new();
         let mut borders_h = HashMap::new();
         let mut borders_v = HashMap::new();
 
-        for x in 0..width {
-            for y in 0..height {
-                let coordinate = Coordinate(x, y);
-                cells.insert(coordinate, Cell::new(coordinate));
-            }
-        }
+        // for x in 0..width {
+        //     for y in 0..height {
+        //         let coordinate = Coordinate(x, y);
+        //         cells.insert(coordinate, Cell::new(coordinate));
+        //     }
+        // }
 
         for x in 0..(width - 1) {
             for y in 0..height {
@@ -103,11 +99,11 @@ impl Grid {
         Self {
             width,
             height,
-            cells,
+            // cells,
             borders_h,
             borders_v,
-            paths: HashMap::new(),
-            state: State::Uninitialized,
+            // paths: HashMap::new(),
+            // state: State::Uninitialized,
         }
     }
 
@@ -165,6 +161,7 @@ impl ToString for Grid {
             for x in 0..self.width {
                 let body = "   ";
 
+                // Should test if cell is linked East.
                 let east_boundary = match self.borders_h.get(&Coordinate(x, y)) {
                     Some(Border::Passage) => " ",
                     Some(Border::Wall) => "|",
@@ -174,8 +171,7 @@ impl ToString for Grid {
                 top.push_str(&body);
                 top.push_str(&east_boundary);
 
-                // let south_boundary = if true { "   " } else { "---"}; 
-
+                // Should test if cell is linked South.
                 let south_boundary = match self.borders_v.get(&Coordinate(x, y)) {
                     Some(Border::Passage) => "   ",
                     Some(Border::Wall) => "---",
@@ -218,8 +214,6 @@ impl RecursiveBacktrack {
     }
 
     fn do_carve(&mut self, grid: &mut Grid, current: Coordinate, last: Coordinate) {
-        // println!("Carving... {:?} {:?}", current, last);
-
         match self.visited.get(&current) {
             Some(_) => (),
             None => {

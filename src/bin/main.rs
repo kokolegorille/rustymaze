@@ -9,8 +9,4 @@ fn main() {
     generator.carve(&mut grid);
 
     println!("{}", grid.to_string());
-
-    // println!("{:?}", grid.borders_h);
-    // println!("-----------------------------------");
-    // println!("{:?}", grid.borders_v);
 }
