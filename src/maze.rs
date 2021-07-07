@@ -1,4 +1,8 @@
 use std::collections::HashMap;
+use std::cmp;
+
+use rand::{thread_rng, Rng};
+use rand::seq::SliceRandom;
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Coordinate(pub usize, pub usize);
@@ -55,70 +59,46 @@ pub enum State {
 }
 
 #[derive(Debug)]
+pub enum HorizontalVertical {
+    Horizontal,
+    Vertical,
+}
+
+#[derive(Debug)]
 pub struct Grid {
     width: usize,
     height: usize,
-    cells: Vec<Cell>,
-
-    // borders_h: Vec<Border>,
-    // borders_v: Vec<Border>,
-    // paths: Vec<Cell>,
-
-    // borders: HashMap<char, Vec<Border>>,
+    cells: HashMap<Coordinate, Cell>,
     borders_h: HashMap<Coordinate, Border>,
     borders_v: HashMap<Coordinate, Border>,
-
     paths: HashMap<Coordinate, Cell>,
-
     state: State,
 }
 
 impl Grid {
     pub fn new(width: usize, height: usize) -> Self {
-        let mut cells = vec![];
-
-        // let mut borders_h = vec![];
-        // let mut borders_v = vec![];
-
-        // let mut borders = HashMap::new();
-        // let mut borders_h = vec![];
-        // let mut borders_v = vec![];
-
+        let mut cells = HashMap::new();
         let mut borders_h = HashMap::new();
         let mut borders_v = HashMap::new();
 
-        for y in 0..height {
-            for x in 0..width {
-                cells.push(Cell::new(Coordinate(x, y)));
-
-                // borders_h.push(Border::Wall);
-                // borders_v.push(Border::Wall);
+        for x in 0..width {
+            for y in 0..height {
+                let coordinate = Coordinate(x, y);
+                cells.insert(coordinate, Cell::new(coordinate));
             }
         }
 
         for x in 0..(width - 1) {
             for y in 0..height {
-                // borders.insert(Coordinate(x, y), Border::Wall);
-                // borders.insert('h', Border::Wall);
-
-                // borders_h.push(Border::Wall);
-
                 borders_h.insert(Coordinate(x, y), Border::Wall);
             }
         }
 
         for x in 0..width {
             for y in 0..(height - 1) {
-                // borders.insert('v', Border::Wall);
-
-                // borders_v.push(Border::Wall);
-
                 borders_v.insert(Coordinate(x, y), Border::Wall);
             }
         }
-
-        // borders.insert('h', borders_h);
-        // borders.insert('v', borders_v);
 
         Self {
             width,
@@ -126,15 +106,34 @@ impl Grid {
             cells,
             borders_h,
             borders_v,
-            // borders,
-            // paths: vec![],
             paths: HashMap::new(),
             state: State::Uninitialized,
         }
     }
 
-    pub fn open_passage(&mut self) {
-            
+    pub fn open_passage(&mut self, current: Coordinate, last: Coordinate) {
+        match self.maybe_horizontal_or_vertical(current, last) {
+            Some(HorizontalVertical::Horizontal) => {
+                self.borders_h.insert(Coordinate(last.0, cmp::max(current.1, last.1)), Border::Passage);
+            },
+            Some(HorizontalVertical::Vertical) => {
+                self.borders_v.insert(Coordinate(cmp::max(current.0, last.0), last.1), Border::Passage);
+            },
+            None => (),
+        }
+    }
+
+    fn maybe_horizontal_or_vertical(&self, current: Coordinate, last: Coordinate) -> Option<HorizontalVertical> {
+        let abs_h: isize = (current.1 as isize - last.1 as isize).abs();
+        let abs_v: isize = (current.0 as isize - last.0 as isize).abs();
+
+        if current.0 == last.0 && abs_h == 1 {
+            Some(HorizontalVertical::Horizontal)
+        } else if current.1 == last.1 && abs_v == 1 {
+            Some(HorizontalVertical::Vertical)
+        } else {
+            None
+        }
     }
 
     fn neighbors(&self, coordinate: &Coordinate) -> Vec<Coordinate> {
@@ -148,10 +147,51 @@ impl Grid {
         let Coordinate(x, y) = coordinate;
         x < self.width && y < self.height
     }
+}
 
-    fn coordinate_to_index(&self, coordinate: Coordinate) -> usize {
-        let Coordinate(x, y) = coordinate;
-        x * self.width + y
+impl ToString for Grid {
+    fn to_string(&self) -> String {
+        let mut output = String::new();
+        output.push('+');
+
+        for _ in 0..self.width {
+            output.push_str(&"---+");
+        }
+        output.push('\n');
+
+        for y in 0..self.height {
+            let mut top = String::from("|");
+            let mut bottom = String::from("+");
+            for x in 0..self.width {
+                let body = "   ";
+
+                let east_boundary = match self.borders_h.get(&Coordinate(x, y)) {
+                    Some(Border::Passage) => " ",
+                    Some(Border::Wall) => "|",
+                    None => "|",
+                }; 
+
+                top.push_str(&body);
+                top.push_str(&east_boundary);
+
+                // let south_boundary = if true { "   " } else { "---"}; 
+
+                let south_boundary = match self.borders_v.get(&Coordinate(x, y)) {
+                    Some(Border::Passage) => "   ",
+                    Some(Border::Wall) => "---",
+                    None => "---",
+                }; 
+
+                bottom.push_str(&south_boundary);
+                bottom.push('+');
+            }
+            output.push_str(&top[..]);
+            output.push('\n');
+
+            output.push_str(&bottom[..]);
+            output.push('\n');
+        }
+        output
     }
 }
 
@@ -167,16 +207,31 @@ impl RecursiveBacktrack {
     }
 
     pub fn carve(&mut self, grid: &mut Grid) {
-        let starting_coordinate = Coordinate(3, 3);
+        let mut rng = thread_rng();
+
+        let x: usize = rng.gen_range(0, grid.width);
+        let y: usize = rng.gen_range(0, grid.height);
+
+        let starting_coordinate = Coordinate(x, y);
+
         self.do_carve(grid, starting_coordinate, starting_coordinate)
     }
 
-    fn do_carve(&mut self, grid: &mut Grid, current_coordinate: Coordinate, last_coordinate: Coordinate) {
-        match self.visited.get(&current_coordinate) {
+    fn do_carve(&mut self, grid: &mut Grid, current: Coordinate, last: Coordinate) {
+        // println!("Carving... {:?} {:?}", current, last);
+
+        match self.visited.get(&current) {
             Some(_) => (),
             None => {
-                self.visited.insert(current_coordinate, true);
-                grid.open_passage();
+                self.visited.insert(current, true);
+                grid.open_passage(current, last);
+
+                let mut neighbors = grid.neighbors(&current);
+                neighbors.shuffle(&mut thread_rng());
+
+                for neighbor in neighbors {
+                    self.do_carve(grid, neighbor, current);
+                }
             },
         }
     }
