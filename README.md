@@ -2,6 +2,8 @@
 
 Generate mazes with Rust
 
+From Elixir topic: https://elixirforum.com/t/looking-for-constructive-feedback-on-my-first-github-elixir-project/40871
+
 ```
 $ cargo run
    Compiling rustymaze v0.1.0 (/home/sqrt/DATA_2021/code/_RUST/rustymaze)
